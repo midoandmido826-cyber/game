@@ -15,37 +15,35 @@ app.get('/', (req, res) => {
 io.on('connection', (socket) => {
   console.log('لاعب اتصل:', socket.id);
 
-  // 1. حدث إنشاء غرفة
+  // 1. إنشاء غرفة
   socket.on('createRoom', (callback) => {
-    // نولد كود عشوائي للغرفة (مثلاً: 4 أرقام)
     const roomId = Math.floor(1000 + Math.random() * 9000).toString();
     socket.join(roomId);
-    console.log(`غرفة جديدة اتعملت: ${roomId} بواسطة ${socket.id}`);
-    
-    // نرد على اللاعب اللي عمل الغرفة
+    console.log(`غرفة جديدة: ${roomId} بواسطة ${socket.id}`);
     if (callback) callback({ roomId: roomId });
   });
 
-  // 2. حدث الانضمام لغرفة
+  // 2. الانضمام لغرفة
   socket.on('joinRoom', (data, callback) => {
     const roomId = data.roomId;
-    // نتأكد إن الغرفة موجودة
     if (io.sockets.adapter.rooms.has(roomId)) {
       socket.join(roomId);
       console.log(`لاعب ${socket.id} انضم للغرفة ${roomId}`);
-      
-      // نبلغ اللاعب اللي في الغرفة إن حد انضم
       socket.to(roomId).emit('playerJoined', { socketId: socket.id });
-      
       if (callback) callback({ success: true });
     } else {
       if (callback) callback({ success: false, message: "الغرفة غير موجودة" });
     }
   });
 
-  // 3. حدث استقبال الحركة وبثها للاعب التاني في نفس الغرفة
+  // 3. المضيف بدأ اللعبة
+  socket.on('hostStartGame', (data) => {
+    socket.to(data.roomId).emit('startGame');
+    console.log(`🚀 المضيف بدأ اللعبة في الغرفة ${data.roomId}`);
+  });
+
+  // 4. حركة اللاعب
   socket.on('playerAction', (data) => {
-    // نبعت الحركة لكل اللي في نفس الغرفة (ما عدا اللي بعتها)
     socket.to(data.roomId).emit('opponentAction', data);
   });
 
